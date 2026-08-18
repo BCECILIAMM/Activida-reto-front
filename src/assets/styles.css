@@ -1,0 +1,197 @@
+/* ============================================================
+   ActiVida · Reto Running — estilos globales
+   Tokens propios que responden a la clase .activida-dark
+   ============================================================ */
+
+:root {
+  --act-green: #2ee56f;
+  --act-green-strong: #0aa447;
+  --act-green-deep: #0b813a;
+
+  --act-bronze: #c2803a;
+  --act-silver: #9aa8b5;
+  --act-gold: #eaa412;
+  --act-legend: #a855f7;
+
+  --act-radius: 18px;
+  --act-shell-max: 720px;
+
+  /* ---- MODO CLARO (default) ---- */
+  --act-bg: #f4f8f5;
+  --act-bg-grad: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(46, 229, 111, 0.18), transparent 70%);
+  --act-panel: #ffffff;
+  --act-panel-2: #f8fbf9;
+  --act-border: #dfeae2;
+  --act-border-strong: #c6d8ca;
+  --act-text: #16241a;
+  --act-text-2: #4a6552;
+  --act-text-3: #7c9384;
+  --act-shadow: 0 1px 2px rgba(22, 36, 26, 0.05), 0 8px 24px -12px rgba(22, 36, 26, 0.15);
+  --act-shadow-lift: 0 2px 6px rgba(22, 36, 26, 0.07), 0 18px 36px -18px rgba(10, 164, 71, 0.4);
+  --act-accent-soft: rgba(46, 229, 111, 0.1);
+  --act-accent-line: rgba(10, 164, 71, 0.28);
+  --act-track: #e4ede6;
+  --act-header-grad: linear-gradient(168deg, #ffffff 0%, #eefaf2 55%, #f4f8f5 100%);
+  --act-on-accent: #05240f;
+}
+
+.activida-dark {
+  /* ---- MODO OSCURO ---- */
+  --act-bg: #080c09;
+  --act-bg-grad: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(46, 229, 111, 0.16), transparent 70%);
+  --act-panel: #111a13;
+  --act-panel-2: #16211a;
+  --act-border: #1e2c22;
+  --act-border-strong: #2c4033;
+  --act-text: #eafaee;
+  --act-text-2: #93b39c;
+  --act-text-3: #5d7d67;
+  --act-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 10px 30px -14px rgba(0, 0, 0, 0.8);
+  --act-shadow-lift: 0 2px 8px rgba(0, 0, 0, 0.6), 0 20px 40px -20px rgba(46, 229, 111, 0.35);
+  --act-accent-soft: rgba(46, 229, 111, 0.09);
+  --act-accent-line: rgba(46, 229, 111, 0.3);
+  --act-track: #1c2a20;
+  --act-header-grad: linear-gradient(168deg, #0a1310 0%, #0d1f14 55%, #080c09 100%);
+  --act-on-accent: #05240f;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--act-bg);
+  color: var(--act-text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.35s ease, color 0.35s ease;
+}
+
+/* Contenedor principal centrado, ancho de app móvil */
+.act-shell {
+  max-width: var(--act-shell-max);
+  margin: 0 auto;
+  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  position: relative;
+}
+
+/* ---- Utilidades reutilizables ---- */
+.act-panel {
+  background: var(--act-panel);
+  border: 1px solid var(--act-border);
+  border-radius: var(--act-radius);
+  box-shadow: var(--act-shadow);
+  transition: background-color 0.3s, border-color 0.3s, box-shadow 0.3s, transform 0.2s;
+}
+
+.act-section {
+  padding: 0 1rem;
+}
+
+.act-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--act-text-3);
+  margin: 1.35rem 0 0.7rem;
+}
+
+.act-section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--act-border);
+}
+
+.act-muted {
+  color: var(--act-text-2);
+}
+
+/* Textura de pista de atletismo (líneas de carril) */
+.act-track-lines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image: repeating-linear-gradient(
+    115deg,
+    transparent 0 26px,
+    var(--act-accent-line) 26px 27px
+  );
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.35), transparent 75%);
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.35), transparent 75%);
+}
+
+/* ---- Ajustes puntuales a PrimeVue ---- */
+.p-dialog-mask {
+  backdrop-filter: blur(6px);
+}
+
+@media (max-width: 640px) {
+  /* Los diálogos se comportan como bottom-sheet en móvil */
+  .act-sheet.p-dialog {
+    margin: 0;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    align-self: flex-end;
+  }
+  .p-dialog-mask.p-overlay-mask {
+    align-items: flex-end;
+  }
+}
+
+.p-toast {
+  max-width: calc(100vw - 2rem);
+}
+
+/* Scrollbar discreta */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--act-border-strong);
+  border-radius: 99px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Animación de entrada reutilizable */
+@keyframes act-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.act-rise {
+  animation: act-rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
