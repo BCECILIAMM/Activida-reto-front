@@ -6,8 +6,11 @@ defineProps({
   challenge: { type: Object, required: true },
   parts: { type: Object, required: true },
   monthProgress: { type: Number, default: 0 },
-  finished: { type: Boolean, default: false }
+  finished: { type: Boolean, default: false },
+  showLogout: { type: Boolean, default: false }
 })
+
+defineEmits(['logout'])
 </script>
 
 <template>
@@ -21,7 +24,18 @@ defineProps({
         </span>
         <span class="hdr__wordmark">Acti<em>Vida</em></span>
       </div>
-      <ThemeToggle />
+      <div class="hdr__actions">
+        <button
+          v-if="showLogout"
+          type="button"
+          class="hdr__logout"
+          aria-label="Cerrar sesión"
+          @click="$emit('logout')"
+        >
+          <i class="pi pi-sign-out" />
+        </button>
+        <ThemeToggle />
+      </div>
     </div>
 
     <div class="hdr__body">
@@ -83,6 +97,31 @@ defineProps({
 .hdr__wordmark em {
   font-style: normal;
   color: var(--act-green-strong);
+}
+
+.hdr__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.hdr__logout {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 99px;
+  background: var(--act-panel);
+  border: 1px solid var(--act-border);
+  color: var(--act-text-2);
+  box-shadow: var(--act-shadow);
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.hdr__logout:hover {
+  border-color: #f43f5e;
+  color: #f43f5e;
 }
 
 .activida-dark .hdr__wordmark em {

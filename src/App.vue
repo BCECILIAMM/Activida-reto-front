@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import Toast from 'primevue/toast'
 import ConfirmDialog from 'primevue/confirmdialog'
@@ -9,6 +9,7 @@ import TabList from 'primevue/tablist'
 import Tab from 'primevue/tab'
 import TabPanels from 'primevue/tabpanels'
 import TabPanel from 'primevue/tabpanel'
+import ProgressSpinner from 'primevue/progressspinner'
 
 import AppHeader from './components/AppHeader.vue'
 import RunnerCard from './components/RunnerCard.vue'
@@ -21,12 +22,16 @@ import RulesPanel from './components/RulesPanel.vue'
 import LogActivityDialog from './components/LogActivityDialog.vue'
 import BadgeInfoDialog from './components/BadgeInfoDialog.vue'
 import BadgeUnlockedOverlay from './components/BadgeUnlockedOverlay.vue'
+import AuthGate from './components/AuthGate.vue'
 
 import { useChallenge } from './composables/useChallenge.js'
 import { useCountdown } from './composables/useCountdown.js'
+import { useAuth, ApiError } from './composables/useAuth.js'
 
 const toast = useToast()
 const confirm = useConfirm()
+
+const { isAuthenticated, ready, usuario, restoreSession, logout } = useAuth()
 
 const {
   challenge,
@@ -34,6 +39,7 @@ const {
   tiers,
   runner,
   history,
+  loading,
   allCompleted,
   totalBadges,
   currentTier,
@@ -44,6 +50,9 @@ const {
   ratio,
   currentValue,
   formatValue,
+  refresh,
+  setRunnerName,
+  clear,
   logActivity,
   undoLast,
   resetAll,
@@ -51,6 +60,35 @@ const {
 } = useChallenge()
 
 const { parts, monthProgress, finished } = useCountdown(challenge.startsAt, challenge.endsAt)
+
+/* ---------- sesión ---------- */
+async function initChallenge() {
+  setRunnerName(usuario.value?.nombre)
+  try {
+    await refresh()
+  } catch (e) {
+    toast.add({
+      severity: 'error',
+      summary: 'No se pudo cargar tu progreso',
+      detail: e instanceof ApiError ? e.message : 'Revisa tu conexión e intenta de nuevo.',
+      life: 4000
+    })
+  }
+}
+
+onMounted(async () => {
+  await restoreSession()
+  if (isAuthenticated.value) await initChallenge()
+})
+
+watch(isAuthenticated, (yes) => {
+  if (yes) initChallenge()
+})
+
+function handleLogout() {
+  logout()
+  clear()
+}
 
 /* ---------- diálogos ---------- */
 const logVisible = ref(false)
@@ -74,52 +112,73 @@ function openInfo(badge) {
 }
 
 /* ---------- acciones ---------- */
-function handleSubmit({ badge, amount, notes, evidence }) {
-  const tierBefore = currentTier.value?.id || null
-  const result = logActivity(badge, amount, { notes, evidence })
-
-  if (result.unlocked) {
-    const tierAfter = currentTier.value
-    unlockedBadge.value = badge
-    unlockedTier.value = tierAfter && tierAfter.id !== tierBefore ? tierAfter : null
-  } else {
-    toast.add({
-      severity: 'success',
-      summary: 'Actividad registrada',
-      detail: `${badge.emoji} ${badge.name} · ${formatValue(badge)}`,
-      life: 2600
-    })
-  }
-}
-
-function handleUndo() {
-  const entry = undoLast()
-  if (!entry) return
+function reportError(e, fallback) {
   toast.add({
-    severity: 'info',
-    summary: 'Registro deshecho',
-    detail: `Se quitó ${entry.emoji} ${entry.name}`,
-    life: 2400
+    severity: 'error',
+    summary: 'Algo salió mal',
+    detail: e instanceof ApiError ? e.message : fallback,
+    life: 4000
   })
 }
 
-function handleSync() {
-  const results = syncFromDevice()
-  if (!results.length) {
-    toast.add({ severity: 'info', summary: 'Todo al día', detail: 'No hay actividades nuevas.', life: 2400 })
-    return
+async function handleSubmit({ badge, amount, notes, evidence }) {
+  try {
+    const result = await logActivity(badge, amount, { notes, evidence })
+
+    if (result.unlocked) {
+      unlockedBadge.value = badge
+      unlockedTier.value = result.subioDeNivel
+        ? tiers.find((t) => t.id === result.subioDeNivel.codigo) || null
+        : null
+    } else {
+      toast.add({
+        severity: 'success',
+        summary: 'Actividad registrada',
+        detail: `${badge.emoji} ${badge.name} · ${formatValue(badge)}`,
+        life: 2600
+      })
+    }
+  } catch (e) {
+    reportError(e, 'No se pudo registrar la actividad.')
   }
-  const unlocked = results.find((r) => r.unlocked)
-  if (unlocked) {
-    unlockedBadge.value = unlocked.badge
-    unlockedTier.value = null
-  } else {
+}
+
+async function handleUndo() {
+  try {
+    const entry = await undoLast()
+    if (!entry) return
     toast.add({
-      severity: 'success',
-      summary: 'Reloj sincronizado',
-      detail: `Se importaron ${results.length} actividades.`,
-      life: 2800
+      severity: 'info',
+      summary: 'Registro deshecho',
+      detail: `Se quitó ${entry.emoji} ${entry.name}`,
+      life: 2400
     })
+  } catch (e) {
+    reportError(e, 'No se pudo deshacer el registro.')
+  }
+}
+
+async function handleSync() {
+  try {
+    const results = await syncFromDevice()
+    if (!results.length) {
+      toast.add({ severity: 'info', summary: 'Todo al día', detail: 'No hay actividades nuevas.', life: 2400 })
+      return
+    }
+    const unlocked = results.find((r) => r.unlocked)
+    if (unlocked) {
+      unlockedBadge.value = unlocked.badge
+      unlockedTier.value = null
+    } else {
+      toast.add({
+        severity: 'success',
+        summary: 'Reloj sincronizado',
+        detail: `Se importaron ${results.length} actividades.`,
+        life: 2800
+      })
+    }
+  } catch (e) {
+    reportError(e, 'No se pudo sincronizar.')
   }
 }
 
@@ -132,9 +191,13 @@ function handleReset() {
     rejectLabel: 'Cancelar',
     acceptProps: { severity: 'danger', rounded: true },
     rejectProps: { severity: 'secondary', text: true, rounded: true },
-    accept: () => {
-      resetAll()
-      toast.add({ severity: 'info', summary: 'Mes reiniciado', detail: 'Empiezas de cero.', life: 2400 })
+    accept: async () => {
+      try {
+        await resetAll()
+        toast.add({ severity: 'info', summary: 'Mes reiniciado', detail: 'Empiezas de cero.', life: 2400 })
+      } catch (e) {
+        reportError(e, 'No se pudo reiniciar el mes.')
+      }
     }
   })
 }
@@ -146,13 +209,25 @@ function closeUnlocked() {
 </script>
 
 <template>
-  <div class="act-shell">
+  <div v-if="!ready" class="act-loading">
+    <ProgressSpinner strokeWidth="4" />
+  </div>
+
+  <AuthGate v-else-if="!isAuthenticated" />
+
+  <div v-else class="act-shell">
     <AppHeader
       :challenge="challenge"
       :parts="parts"
       :month-progress="monthProgress"
       :finished="finished"
+      show-logout
+      @logout="handleLogout"
     />
+
+    <div v-if="loading && !history.length" class="act-loading act-loading--inline">
+      <ProgressSpinner strokeWidth="4" />
+    </div>
 
     <RunnerCard
       :runner="runner"
@@ -236,6 +311,17 @@ function closeUnlocked() {
 </template>
 
 <style scoped>
+.act-loading {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+}
+
+.act-loading--inline {
+  min-height: 0;
+  padding: 2rem 0 0;
+}
+
 .act-tabs {
   margin-top: 0.25rem;
 }
