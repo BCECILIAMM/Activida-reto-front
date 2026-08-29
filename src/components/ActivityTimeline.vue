@@ -1,15 +1,29 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import Button from 'primevue/button'
 
 const props = defineProps({
   history: { type: Array, default: () => [] },
-  limit: { type: Number, default: 15 }
+  limit: { type: Number, default: 15 },
+  hasMore: { type: Boolean, default: false }
 })
 
-const emit = defineEmits(['undo'])
+const emit = defineEmits(['undo', 'more'])
 
-const items = computed(() => props.history.slice(0, props.limit))
+const shown = ref(0)
+const items = computed(() =>
+  props.history.slice(0, props.limit + shown.value)
+)
+
+function showMore() {
+  // Muestra más de lo ya cargado; si se acaba lo local, pide otra página.
+  if (props.limit + shown.value < props.history.length) {
+    shown.value += props.limit
+  } else if (props.hasMore) {
+    emit('more')
+    shown.value += props.limit
+  }
+}
 
 function formatDate(iso) {
   const d = new Date(iso)
@@ -72,9 +86,16 @@ function formatAmount(entry) {
       </li>
     </ol>
 
-    <p v-if="history.length > limit" class="tl__more">
-      + {{ history.length - limit }} registros anteriores
-    </p>
+    <div v-if="items.length < history.length || hasMore" class="tl__more">
+      <Button
+        label="Ver más"
+        icon="pi pi-chevron-down"
+        size="small"
+        text
+        severity="secondary"
+        @click="showMore"
+      />
+    </div>
   </section>
 </template>
 

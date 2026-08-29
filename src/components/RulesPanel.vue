@@ -10,7 +10,7 @@ defineProps({
   challenge: { type: Object, required: true }
 })
 
-const emit = defineEmits(['reset'])
+const emit = defineEmits(['reset', 'change-password'])
 </script>
 
 <template>
@@ -80,6 +80,22 @@ const emit = defineEmits(['reset'])
         </AccordionContent>
       </AccordionPanel>
     </Accordion>
+
+    <div class="rules__account act-panel">
+      <div>
+        <strong>Mi cuenta</strong>
+        <p>Cambia tu contraseña de acceso.</p>
+      </div>
+      <Button
+        label="Cambiar contraseña"
+        icon="pi pi-key"
+        severity="secondary"
+        outlined
+        rounded
+        size="small"
+        @click="emit('change-password')"
+      />
+    </div>
 
     <div class="rules__danger act-panel">
       <div>
@@ -215,11 +231,31 @@ const emit = defineEmits(['reset'])
   line-height: 1.5;
 }
 
-.rules__danger {
+.rules__account {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   margin-top: 1rem;
+  padding: 0.85rem 0.95rem;
+}
+
+.rules__account strong {
+  font-size: 0.8rem;
+  color: var(--act-text);
+}
+
+.rules__account p {
+  margin: 0.15rem 0 0;
+  font-size: 0.72rem;
+  color: var(--act-text-3);
+  line-height: 1.45;
+}
+
+.rules__danger {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.6rem;
   padding: 0.85rem 0.95rem;
   border-color: color-mix(in srgb, #ef4444 22%, var(--act-border));
 }
@@ -234,5 +270,16 @@ const emit = defineEmits(['reset'])
   font-size: 0.72rem;
   color: var(--act-text-3);
   line-height: 1.45;
+}
+
+.rules__account > div,
+.rules__danger > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.rules__account :deep(.p-button),
+.rules__danger :deep(.p-button) {
+  flex-shrink: 0;
 }
 </style>

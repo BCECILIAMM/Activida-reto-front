@@ -115,112 +115,74 @@ en los dos bloques (`:root` y `.activida-dark`) y úsalo con `var(--act-…)`.
 
 ---
 
-## Conectar con tu backend (Spring Boot + Oracle)
+## Backend
 
-Hoy el progreso se guarda en `localStorage`. Todo el acceso a datos está
-aislado en **`src/composables/useChallenge.js`**, en las funciones `load()` y
-`persist()`. Sustituirlas por llamadas HTTP es el único cambio necesario:
+La app habla con la **API ActiVida** (Fastify + Postgres/Neon + Cloudflare R2).
+Configura la URL en `.env`:
 
-```js
-async function load() {
-  const res = await fetch('/api/reto/mi-progreso', {
-    headers: { Authorization: `Bearer ${token}` }
-  })
-  return res.json()
-}
-
-async function persist() {
-  await fetch('/api/reto/mi-progreso', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ progress, history: history.value })
-  })
-}
+```
+VITE_API_URL=http://localhost:3000/api
 ```
 
-### Tablas sugeridas (Oracle)
+Todo el acceso a datos está aislado en `src/services/api.js` y en los
+composables:
 
-```sql
--- Un reto por mes
-CREATE TABLE reto (
-  id            NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  nombre        VARCHAR2(120)  NOT NULL,
-  fecha_inicio  DATE           NOT NULL,
-  fecha_fin     DATE           NOT NULL,
-  activo        NUMBER(1)      DEFAULT 1
-);
+| Archivo | Responsabilidad |
+| --- | --- |
+| `src/services/api.js` | Cliente HTTP, manejo de token, 401 global, subida a R2 |
+| `src/composables/useAuth.js` | Sesión: registro, login, "quién soy", sesión caducada |
+| `src/composables/useCatalog.js` | Reto activo (`GET /retos/activo`); si falla, usa `data/badges.js` |
+| `src/composables/useChallenge.js` | Progreso, historial, registrar actividad, evidencias, sincronizar |
 
--- Definición de cada badge del reto
-CREATE TABLE badge (
-  id          NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  reto_id     NUMBER         NOT NULL REFERENCES reto(id),
-  codigo      VARCHAR2(40)   NOT NULL,   -- 'k25', 'strong'…
-  nombre      VARCHAR2(80)   NOT NULL,
-  categoria   VARCHAR2(60),
-  descripcion VARCHAR2(400),
-  tipo        VARCHAR2(20)   NOT NULL,   -- numeric | count | weeks | evidence | auto
-  unidad      VARCHAR2(10),
-  meta        NUMBER(10,2)   NOT NULL,
-  fuente      VARCHAR2(20)   NOT NULL,   -- device | photo | manual | auto
-  color       VARCHAR2(9),
-  CONSTRAINT uk_badge UNIQUE (reto_id, codigo)
-);
+### Qué quedó conectado
 
--- Inscripción de una corredora a un reto
-CREATE TABLE inscripcion (
-  id         NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  reto_id    NUMBER NOT NULL REFERENCES reto(id),
-  usuario_id NUMBER NOT NULL,
-  dorsal     VARCHAR2(10),
-  nivel      VARCHAR2(20),               -- bronce | plata | oro | legend
-  CONSTRAINT uk_inscripcion UNIQUE (reto_id, usuario_id)
-);
+- **Reto del mes**: se carga desde `GET /retos/activo`. `data/badges.js` es solo
+  el respaldo para trabajar sin conexión y para el `build:single`.
+- **Evidencias** (badges de fuerza y movilidad): subida real en 3 pasos
+  (URL firmada → `PUT` directo a R2 → confirmar). Si R2 no está configurado en
+  el backend, la actividad igual se guarda y se avisa que la foto no subió.
+- **Sesión caducada**: cualquier `401` en una ruta autenticada cierra la sesión
+  y muestra un aviso (el `401` de "cambiar contraseña" no cuenta).
+- **Ranking**: pestaña propia contra `GET /retos/ranking`, con tu fila resaltada.
+- **Cambiar contraseña**: en la pestaña *Reglas → Mi cuenta*.
+- **Historial**: paginado con "Ver más" (`GET /actividades?limite&desde`).
 
--- Cada registro que hace la usuaria
-CREATE TABLE actividad (
-  id             NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  inscripcion_id NUMBER        NOT NULL REFERENCES inscripcion(id),
-  badge_id       NUMBER        NOT NULL REFERENCES badge(id),
-  cantidad       NUMBER(10,2)  NOT NULL,
-  notas          VARCHAR2(500),
-  origen         VARCHAR2(20),           -- manual | strava | garmin
-  externo_id     VARCHAR2(80),           -- id de Strava, para no duplicar
-  registrado_en  TIMESTAMP     DEFAULT SYSTIMESTAMP
-);
+### Sincronización con Strava/Garmin
 
--- Fotos o videos de fuerza y movilidad
-CREATE TABLE evidencia (
-  id           NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  actividad_id NUMBER        NOT NULL REFERENCES actividad(id),
-  url          VARCHAR2(500) NOT NULL,
-  tipo         VARCHAR2(20),             -- image | video
-  subido_en    TIMESTAMP     DEFAULT SYSTIMESTAMP
-);
+El botón *Sincroniza tu reloj* es una **demo**: manda una carrera de ejemplo al
+endpoint real `POST /actividades/sincronizar`. La integración con OAuth de
+Strava/Garmin todavía no existe.
 
--- Progreso acumulado (se puede calcular, pero cachearlo es más rápido)
-CREATE TABLE progreso (
-  inscripcion_id NUMBER       NOT NULL REFERENCES inscripcion(id),
-  badge_id       NUMBER       NOT NULL REFERENCES badge(id),
-  acumulado      NUMBER(10,2) DEFAULT 0,
-  completado_en  TIMESTAMP,
-  CONSTRAINT pk_progreso PRIMARY KEY (inscripcion_id, badge_id)
-);
+### Endpoints que consume la app
+
+| Método | Ruta | Qué hace |
+| --- | --- | --- |
+| POST | `/api/auth/registro` · `/api/auth/login` | Crea cuenta / inicia sesión |
+| GET | `/api/auth/yo` | Restaura la sesión guardada |
+| POST | `/api/auth/cambiar-password` | Cambia la contraseña |
+| GET | `/api/retos/activo` | Reto del mes con badges y niveles |
+| GET | `/api/retos/mi-progreso` | Progreso, resumen, nivel e historial |
+| GET | `/api/retos/ranking?limite` | Tabla de posiciones |
+| POST | `/api/actividades` | Registra una actividad |
+| GET | `/api/actividades?limite&desde` | Historial paginado |
+| DELETE | `/api/actividades/:id` · `/api/actividades` | Deshacer / reiniciar el mes |
+| POST | `/api/actividades/sincronizar` | Importa de Strava/Garmin (demo) |
+| POST | `/api/evidencias/url-de-subida` | Pide la URL firmada de R2 |
+| POST | `/api/evidencias/:id/confirmar` | Confirma que la subida terminó |
+
+El esquema y los detalles del backend viven en su propio repo
+(`Backend/Activida-reto-back`).
+
+---
+
+## Pruebas
+
+```bash
+npm test
 ```
 
-### Endpoints sugeridos
-
-| Método | Ruta                          | Qué hace                                     |
-| ------ | ----------------------------- | -------------------------------------------- |
-| GET    | `/api/retos/activo`           | El reto del mes con sus badges                |
-| GET    | `/api/retos/{id}/mi-progreso` | Progreso, historial y nivel de la usuaria     |
-| POST   | `/api/actividades`            | Registra una actividad y recalcula el badge   |
-| POST   | `/api/actividades/{id}/evidencia` | Sube la foto o video (multipart)         |
-| DELETE | `/api/actividades/{id}`       | Deshace un registro                           |
-| GET    | `/api/retos/{id}/ranking`     | Tabla de posiciones del mes                   |
-| POST   | `/api/integraciones/strava/sync` | Importa actividades desde Strava           |
-
-**Ojo con Strava:** guarda el `externo_id` de cada actividad importada. Sin eso,
-cada sincronización vuelve a sumar los mismos kilómetros.
+Vitest cubre la lógica derivada del reto (metas, ratios, niveles, badge
+maestro) y la validación de evidencias en `src/composables/useChallenge.spec.js`.
 
 ---
 

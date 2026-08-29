@@ -1,7 +1,9 @@
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, toValue } from 'vue'
 
 /**
- * Cuenta regresiva hasta una fecha ISO.
+ * Cuenta regresiva hasta una fecha.
+ * `startsAt` y `endsAt` pueden ser un string, un ref o un getter: así la cuenta
+ * se ajusta sola cuando el reto se carga desde el backend después del montaje.
  * Devuelve días / horas / minutos y el porcentaje de mes transcurrido.
  */
 export function useCountdown(startsAt, endsAt) {
@@ -16,10 +18,10 @@ export function useCountdown(startsAt, endsAt) {
 
   onUnmounted(() => clearInterval(timer))
 
-  const start = new Date(startsAt)
-  const end = new Date(endsAt)
+  const start = computed(() => new Date(toValue(startsAt)))
+  const end = computed(() => new Date(toValue(endsAt)))
 
-  const remaining = computed(() => Math.max(0, end - now.value))
+  const remaining = computed(() => Math.max(0, end.value - now.value))
 
   const parts = computed(() => {
     const ms = remaining.value
@@ -30,12 +32,16 @@ export function useCountdown(startsAt, endsAt) {
     }
   })
 
-  const notStarted = computed(() => now.value < start)
-  const finished = computed(() => remaining.value === 0)
+  const notStarted = computed(() => now.value < start.value)
+  const finished = computed(() => {
+    const e = end.value
+    return e instanceof Date && !isNaN(e) && now.value >= e
+  })
 
   const monthProgress = computed(() => {
-    const total = end - start
-    const done = now.value - start
+    const total = end.value - start.value
+    const done = now.value - start.value
+    if (!total || isNaN(total)) return 0
     return Math.max(0, Math.min(1, done / total))
   })
 

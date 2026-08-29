@@ -10,6 +10,7 @@ import Tab from 'primevue/tab'
 import TabPanels from 'primevue/tabpanels'
 import TabPanel from 'primevue/tabpanel'
 import ProgressSpinner from 'primevue/progressspinner'
+import Message from 'primevue/message'
 
 import AppHeader from './components/AppHeader.vue'
 import RunnerCard from './components/RunnerCard.vue'
@@ -22,16 +23,29 @@ import RulesPanel from './components/RulesPanel.vue'
 import LogActivityDialog from './components/LogActivityDialog.vue'
 import BadgeInfoDialog from './components/BadgeInfoDialog.vue'
 import BadgeUnlockedOverlay from './components/BadgeUnlockedOverlay.vue'
+import ChangePasswordDialog from './components/ChangePasswordDialog.vue'
+import RankingPanel from './components/RankingPanel.vue'
 import AuthGate from './components/AuthGate.vue'
 
 import { useChallenge } from './composables/useChallenge.js'
 import { useCountdown } from './composables/useCountdown.js'
+import { useCatalog } from './composables/useCatalog.js'
 import { useAuth, ApiError } from './composables/useAuth.js'
 
 const toast = useToast()
 const confirm = useConfirm()
 
-const { isAuthenticated, ready, usuario, restoreSession, logout } = useAuth()
+const {
+  isAuthenticated,
+  ready,
+  usuario,
+  restoreSession,
+  logout,
+  sessionExpired,
+  acknowledgeExpired
+} = useAuth()
+
+const { loadCatalog } = useCatalog()
 
 const {
   challenge,
@@ -51,6 +65,8 @@ const {
   currentValue,
   formatValue,
   refresh,
+  loadMoreHistory,
+  hasMoreHistory,
   setRunnerName,
   clear,
   logActivity,
@@ -59,7 +75,10 @@ const {
   syncFromDevice
 } = useChallenge()
 
-const { parts, monthProgress, finished } = useCountdown(challenge.startsAt, challenge.endsAt)
+const { parts, monthProgress, finished } = useCountdown(
+  () => challenge.value.startsAt,
+  () => challenge.value.endsAt
+)
 
 /* ---------- sesión ---------- */
 async function initChallenge() {
@@ -77,12 +96,25 @@ async function initChallenge() {
 }
 
 onMounted(async () => {
+  loadCatalog() // reto activo desde el backend (público); si falla, quedan los datos locales
   await restoreSession()
   if (isAuthenticated.value) await initChallenge()
 })
 
 watch(isAuthenticated, (yes) => {
   if (yes) initChallenge()
+})
+
+watch(sessionExpired, (expired) => {
+  if (!expired) return
+  clear()
+  toast.add({
+    severity: 'warn',
+    summary: 'Tu sesión expiró',
+    detail: 'Vuelve a iniciar sesión para continuar.',
+    life: 5000
+  })
+  acknowledgeExpired()
 })
 
 function handleLogout() {
@@ -93,6 +125,7 @@ function handleLogout() {
 /* ---------- diálogos ---------- */
 const logVisible = ref(false)
 const infoVisible = ref(false)
+const passwordVisible = ref(false)
 const selectedBadge = ref(null)
 const unlockedBadge = ref(null)
 const unlockedTier = ref(null)
@@ -121,14 +154,14 @@ function reportError(e, fallback) {
   })
 }
 
-async function handleSubmit({ badge, amount, notes, evidence }) {
+async function handleSubmit({ badge, amount, notes, files }) {
   try {
-    const result = await logActivity(badge, amount, { notes, evidence })
+    const result = await logActivity(badge, amount, { notes, files })
 
     if (result.unlocked) {
       unlockedBadge.value = badge
       unlockedTier.value = result.subioDeNivel
-        ? tiers.find((t) => t.id === result.subioDeNivel.codigo) || null
+        ? tiers.value.find((t) => t.id === result.subioDeNivel.codigo) || null
         : null
     } else {
       toast.add({
@@ -136,6 +169,16 @@ async function handleSubmit({ badge, amount, notes, evidence }) {
         summary: 'Actividad registrada',
         detail: `${badge.emoji} ${badge.name} · ${formatValue(badge)}`,
         life: 2600
+      })
+    }
+
+    // La actividad se guardó aunque alguna evidencia haya fallado.
+    if (result.evidencia?.errores?.length) {
+      toast.add({
+        severity: 'warn',
+        summary: 'La actividad se guardó, pero las fotos no',
+        detail: result.evidencia.errores[0],
+        life: 5000
       })
     }
   } catch (e) {
@@ -155,6 +198,14 @@ async function handleUndo() {
     })
   } catch (e) {
     reportError(e, 'No se pudo deshacer el registro.')
+  }
+}
+
+async function handleLoadMore() {
+  try {
+    await loadMoreHistory()
+  } catch (e) {
+    reportError(e, 'No se pudieron cargar más registros.')
   }
 }
 
@@ -206,6 +257,15 @@ function closeUnlocked() {
   unlockedBadge.value = null
   unlockedTier.value = null
 }
+
+function onPasswordChanged() {
+  toast.add({
+    severity: 'success',
+    summary: 'Contraseña actualizada',
+    detail: 'Úsala la próxima vez que inicies sesión.',
+    life: 3000
+  })
+}
 </script>
 
 <template>
@@ -243,12 +303,22 @@ function closeUnlocked() {
       <TabList>
         <Tab value="reto"><i class="pi pi-bolt" /> Mi reto</Tab>
         <Tab value="actividad"><i class="pi pi-history" /> Actividad</Tab>
+        <Tab value="ranking"><i class="pi pi-trophy" /> Ranking</Tab>
         <Tab value="reglas"><i class="pi pi-book" /> Reglas</Tab>
       </TabList>
 
       <TabPanels>
         <!-- ── MI RETO ── -->
         <TabPanel value="reto">
+          <Message
+            v-if="finished"
+            severity="info"
+            :closable="false"
+            class="act-finished"
+          >
+            El reto de {{ challenge.month }} terminó. Lo que registres ahora ya no cuenta para este mes.
+          </Message>
+
           <TierTrack
             :tiers="tiers"
             :completed="allCompleted"
@@ -258,7 +328,7 @@ function closeUnlocked() {
 
           <StatsRow :stats="stats" />
 
-          <SyncCard @sync="handleSync" />
+          <SyncCard :disabled="finished" @sync="handleSync" />
 
           <BadgeGrid
             :badges="badges"
@@ -273,12 +343,27 @@ function closeUnlocked() {
         <!-- ── ACTIVIDAD ── -->
         <TabPanel value="actividad">
           <StatsRow :stats="stats" />
-          <ActivityTimeline :history="history" @undo="handleUndo" />
+          <ActivityTimeline
+            :history="history"
+            :has-more="hasMoreHistory"
+            @undo="handleUndo"
+            @more="handleLoadMore"
+          />
+        </TabPanel>
+
+        <!-- ── RANKING ── -->
+        <TabPanel value="ranking">
+          <RankingPanel :my-dorsal="runner.bib" />
         </TabPanel>
 
         <!-- ── REGLAS ── -->
         <TabPanel value="reglas">
-          <RulesPanel :tiers="tiers" :challenge="challenge" @reset="handleReset" />
+          <RulesPanel
+            :tiers="tiers"
+            :challenge="challenge"
+            @reset="handleReset"
+            @change-password="passwordVisible = true"
+          />
         </TabPanel>
       </TabPanels>
     </Tabs>
@@ -305,9 +390,14 @@ function closeUnlocked() {
 
     <BadgeUnlockedOverlay :badge="unlockedBadge" :tier="unlockedTier" @close="closeUnlocked" />
 
-    <Toast position="top-center" />
+    <ChangePasswordDialog v-model:visible="passwordVisible" @done="onPasswordChanged" />
+
     <ConfirmDialog :draggable="false" :style="{ width: '340px' }" />
   </div>
+
+  <!-- Fuera de los bloques v-if: así el aviso de "sesión expiró" sigue visible
+       aunque el logout automático haya devuelto a la pantalla de acceso. -->
+  <Toast position="top-center" />
 </template>
 
 <style scoped>
@@ -324,6 +414,10 @@ function closeUnlocked() {
 
 .act-tabs {
   margin-top: 0.25rem;
+}
+
+.act-finished {
+  margin: 0.75rem 1rem 0 !important;
 }
 
 .act-tabs :deep(.p-tablist) {

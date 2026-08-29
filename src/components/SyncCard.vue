@@ -2,12 +2,18 @@
 import { ref } from 'vue'
 import Button from 'primevue/button'
 
+const props = defineProps({
+  disabled: { type: Boolean, default: false }
+})
+
 const emit = defineEmits(['sync'])
 const loading = ref(false)
 
 function handleSync() {
+  if (props.disabled) return
   loading.value = true
-  // Simula la latencia de una llamada real a la API de Strava/Garmin
+  // Demo: simula la latencia de una llamada a Strava/Garmin antes de mandar
+  // datos de ejemplo al endpoint real de sincronización.
   setTimeout(() => {
     loading.value = false
     emit('sync')
@@ -25,15 +31,15 @@ function handleSync() {
 
       <div class="sync__text">
         <strong class="sync__title">Sincroniza tu reloj</strong>
-        <span class="sync__sub">Kilómetros, minutos y desnivel se suman solos</span>
+        <span class="sync__sub">Demo: importa una carrera de ejemplo (km, min y D+)</span>
       </div>
 
       <Button
-        :label="loading ? 'Sincronizando…' : 'Conectar'"
+        :label="loading ? 'Sincronizando…' : 'Probar'"
         :icon="loading ? 'pi pi-spin pi-spinner' : 'pi pi-sync'"
         size="small"
         rounded
-        :disabled="loading"
+        :disabled="loading || disabled"
         class="sync__btn"
         @click="handleSync"
       />

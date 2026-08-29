@@ -6,6 +6,7 @@ import InputNumber from 'primevue/inputnumber'
 import Textarea from 'primevue/textarea'
 import SelectButton from 'primevue/selectbutton'
 import Message from 'primevue/message'
+import { validarEvidencia } from '../composables/useChallenge.js'
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
@@ -65,8 +66,14 @@ function pickFiles() {
 
 function onFiles(event) {
   const list = Array.from(event.target.files || [])
+  let rechazo = ''
   list.forEach((file) => {
     if (files.value.length >= 4) return
+    const problema = validarEvidencia(file)
+    if (problema) {
+      rechazo = problema
+      return
+    }
     files.value.push(file)
     previews.value.push({
       url: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
@@ -74,7 +81,7 @@ function onFiles(event) {
       isVideo: file.type.startsWith('video/')
     })
   })
-  error.value = ''
+  error.value = rechazo
   event.target.value = ''
 }
 
@@ -106,7 +113,7 @@ function submit() {
       badge: props.badge,
       amount: 1,
       notes: notes.value,
-      evidence: files.value.length
+      files: files.value.slice()
     })
   }
   close()

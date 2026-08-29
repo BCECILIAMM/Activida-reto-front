@@ -19,7 +19,18 @@ export function setToken(token) {
   else localStorage.removeItem(TOKEN_KEY)
 }
 
-async function request(path, { method = 'GET', body, auth = true } = {}) {
+/* ------------------------------------------------------------------
+   Sesión caducada: cuando una petición autenticada recibe 401, la app
+   debe cerrar sesión y avisar. Se registra un solo manejador global
+   desde useAuth para no acoplar este módulo a Vue.
+------------------------------------------------------------------ */
+let onUnauthorized = null
+
+export function setUnauthorizedHandler(fn) {
+  onUnauthorized = fn
+}
+
+async function request(path, { method = 'GET', body, auth = true, on401 = 'logout' } = {}) {
   const headers = {}
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   if (auth) {
@@ -42,9 +53,36 @@ async function request(path, { method = 'GET', body, auth = true } = {}) {
   const data = isJson ? await res.json().catch(() => null) : null
 
   if (!res.ok) {
+    // 401 en una ruta autenticada = el token ya no sirve. Salvo que quien
+    // llama pida ignorarlo (p. ej. "cambiar contraseña", donde 401 solo
+    // significa "tu contraseña actual está mal").
+    if (res.status === 401 && auth && on401 === 'logout') {
+      onUnauthorized?.()
+    }
     throw new ApiError(data?.message || `Error ${res.status}`, res.status, data)
   }
   return data
+}
+
+/**
+ * Sube un archivo directo a Cloudflare R2 usando la URL firmada que dio el
+ * backend. No lleva token: la firma ya autoriza la subida. No pasa por
+ * `request` porque la respuesta de R2 no es JSON.
+ */
+export async function uploadToSignedUrl(url, file, contentType) {
+  let res
+  try {
+    res = await fetch(url, {
+      method: 'PUT',
+      headers: { 'Content-Type': contentType },
+      body: file
+    })
+  } catch (e) {
+    throw new ApiError('No se pudo subir el archivo. Revisa tu conexión.', 0, null)
+  }
+  if (!res.ok) {
+    throw new ApiError(`El almacenamiento rechazó la subida (${res.status}).`, res.status, null)
+  }
 }
 
 export const api = {
@@ -52,7 +90,8 @@ export const api = {
     registro: (payload) => request('/auth/registro', { method: 'POST', body: payload, auth: false }),
     login: (payload) => request('/auth/login', { method: 'POST', body: payload, auth: false }),
     yo: () => request('/auth/yo'),
-    cambiarPassword: (payload) => request('/auth/cambiar-password', { method: 'POST', body: payload })
+    cambiarPassword: (payload) =>
+      request('/auth/cambiar-password', { method: 'POST', body: payload, on401: 'ignore' })
   },
   retos: {
     activo: () => request('/retos/activo', { auth: false }),
@@ -64,7 +103,7 @@ export const api = {
     historial: ({ limite, desde } = {}) => {
       const params = new URLSearchParams()
       if (limite) params.set('limite', limite)
-      if (desde) params.set('desde', desde)
+      if (desde != null) params.set('desde', desde)
       const qs = params.toString()
       return request(`/actividades${qs ? `?${qs}` : ''}`)
     },
@@ -79,3 +118,18 @@ export const api = {
     borrar: (id) => request(`/evidencias/${id}`, { method: 'DELETE' })
   }
 }
+
+/* ------------------------------------------------------------------
+   Formatos y tamaño que acepta el backend para las evidencias.
+   Debe coincidir con src/lib/storage.js del backend.
+------------------------------------------------------------------ */
+export const EVIDENCIA_TIPOS = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'video/mp4',
+  'video/quicktime'
+]
+
+export const EVIDENCIA_MAX_BYTES = 25 * 1024 * 1024

@@ -11,6 +11,7 @@ const { login, registro, loading } = useAuth()
 const mode = ref('login') // 'login' | 'registro'
 const nombre = ref('')
 const email = ref('')
+const telefono = ref('')
 const password = ref('')
 const error = ref('')
 
@@ -29,7 +30,12 @@ async function submit() {
         error.value = 'Escribe tu nombre.'
         return
       }
-      await registro({ nombre: nombre.value.trim(), email: email.value.trim(), password: password.value })
+      await registro({
+        nombre: nombre.value.trim(),
+        email: email.value.trim(),
+        password: password.value,
+        telefono: telefono.value.trim()
+      })
     }
   } catch (e) {
     error.value = e instanceof ApiError ? e.message : 'Algo salió mal. Intenta de nuevo.'
@@ -65,6 +71,19 @@ async function submit() {
             fluid
             placeholder="tu@correo.com"
             autocomplete="email"
+          />
+        </div>
+
+        <div v-if="mode === 'registro'" class="auth__field">
+          <label class="auth__label" for="auth-telefono">Teléfono <span>(opcional)</span></label>
+          <InputText
+            id="auth-telefono"
+            v-model="telefono"
+            type="tel"
+            fluid
+            placeholder="Para avisos del reto"
+            autocomplete="tel"
+            maxlength="20"
           />
         </div>
 
