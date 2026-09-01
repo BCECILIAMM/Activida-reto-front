@@ -17,6 +17,13 @@ const loaded = ref(false)
 
 const medals = ['🥇', '🥈', '🥉']
 
+// El backend marca la fila propia con `es_tu`. Si la API es vieja (o el build
+// de un solo archivo sin backend), se cae al match por dorsal.
+function isMe(row) {
+  if (typeof row.es_tu === 'boolean') return row.es_tu
+  return Boolean(props.myDorsal) && row.dorsal === props.myDorsal
+}
+
 function formatKm(km) {
   return Number(km || 0).toFixed(1)
 }
@@ -84,7 +91,7 @@ onMounted(load)
         v-for="row in rows"
         :key="row.dorsal + row.nombre"
         class="rank__item act-panel"
-        :class="{ 'is-me': myDorsal && row.dorsal === myDorsal, 'is-podium': row.posicion <= 3 }"
+        :class="{ 'is-me': isMe(row), 'is-podium': row.posicion <= 3 }"
       >
         <span class="rank__pos">
           <span v-if="row.posicion <= 3" class="rank__medal">{{ medals[row.posicion - 1] }}</span>
@@ -93,7 +100,7 @@ onMounted(load)
         <div class="rank__who">
           <span class="rank__name">
             {{ row.nombre }}
-            <span v-if="myDorsal && row.dorsal === myDorsal" class="rank__tagme">tú</span>
+            <span v-if="isMe(row)" class="rank__tagme">tú</span>
           </span>
           <span class="rank__meta">
             Dorsal {{ row.dorsal }} · última actividad {{ formatLast(row.ultima_actividad) }}
