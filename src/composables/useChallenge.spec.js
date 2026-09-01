@@ -35,23 +35,23 @@ describe('validarEvidencia', () => {
 
 describe('reglas derivadas del reto', () => {
   it('isDone y ratio respetan la meta del badge', () => {
-    setProgress({ k25: 12.5 })
+    setProgress({ k25: 22.5 })
     expect(c.isDone(badge('k25'))).toBe(false)
     expect(c.ratio(badge('k25'))).toBeCloseTo(0.5)
 
-    setProgress({ k25: 30 })
+    setProgress({ k25: 50 })
     expect(c.isDone(badge('k25'))).toBe(true)
     expect(c.ratio(badge('k25'))).toBe(1) // no pasa de 1 aunque se pase de la meta
   })
 
   it('formatValue muestra unidad y decimales correctos', () => {
     setProgress({ k25: 7.25, min180: 90 })
-    expect(c.formatValue(badge('k25'))).toBe('7.3/25 km')
-    expect(c.formatValue(badge('min180'))).toBe('90/180 min')
+    expect(c.formatValue(badge('k25'))).toBe('7.3/45 km')
+    expect(c.formatValue(badge('min180'))).toBe('90/900 min')
   })
 
   it('con 5 badges se alcanza el nivel bronce', () => {
-    setProgress({ k25: 25, min180: 180, z2: 4, longrun: 3, speed: 3 })
+    setProgress({ k25: 45, min180: 900, z2: 8, longrun: 4, speed: 3 })
     expect(c.allCompleted.value).toBe(5)
     expect(c.currentTier.value?.id).toBe('bronce')
     expect(c.nextTier.value?.id).toBe('plata')
@@ -59,12 +59,12 @@ describe('reglas derivadas del reto', () => {
 
   it('el badge maestro se completa solo al llegar a los 9', () => {
     setProgress({
-      k25: 25,
-      min180: 180,
-      z2: 4,
-      strong: 6,
-      climber: 300,
-      longrun: 3,
+      k25: 45,
+      min180: 900,
+      z2: 8,
+      strong: 8,
+      climber: 400,
+      longrun: 4,
       speed: 3,
       consistency: 4,
       recovery: 6
@@ -75,7 +75,7 @@ describe('reglas derivadas del reto', () => {
   })
 
   it('clear deja el progreso en cero', () => {
-    setProgress({ k25: 25 })
+    setProgress({ k25: 45 })
     c.clear()
     expect(c.allCompleted.value).toBe(0)
     expect(c.stats.value.km).toBe(0)

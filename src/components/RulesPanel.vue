@@ -52,7 +52,7 @@ const emit = defineEmits(['reset', 'change-password'])
               <span class="rules__proof-icon"><i class="pi pi-pencil" /></span>
               <div>
                 <strong>Constancia</strong>
-                <p>La marcas tú al cerrar cada semana en la que corriste 2 días o más.</p>
+                <p>La marcas tú al cerrar cada semana en la que corriste 3 días o más.</p>
               </div>
             </div>
           </div>
