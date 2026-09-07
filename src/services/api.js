@@ -96,7 +96,9 @@ export const api = {
   retos: {
     activo: () => request('/retos/activo', { auth: false }),
     miProgreso: () => request('/retos/mi-progreso'),
-    ranking: (limite) => request(`/retos/ranking${limite ? `?limite=${limite}` : ''}`)
+    ranking: (limite) => request(`/retos/ranking${limite ? `?limite=${limite}` : ''}`),
+    // Solo responde a cuentas con rol coach o admin.
+    panel: () => request('/retos/panel')
   },
   actividades: {
     registrar: (payload) => request('/actividades', { method: 'POST', body: payload }),

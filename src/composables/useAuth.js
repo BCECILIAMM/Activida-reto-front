@@ -88,6 +88,9 @@ export function useAuth() {
     usuario: computed(() => state.usuario),
     inscripcion: computed(() => state.inscripcion),
     isAuthenticated: computed(() => Boolean(state.usuario)),
+    // Coach y admin ven el panel de seguimiento. El rol viene del backend en
+    // cada petición, así que quitarlo allá lo quita aquí en la siguiente carga.
+    esCoach: computed(() => ['coach', 'admin'].includes(state.usuario?.rol)),
     ready: computed(() => state.ready),
     loading: computed(() => state.loading),
     sessionExpired: computed(() => state.sessionExpired),

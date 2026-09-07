@@ -25,12 +25,17 @@ import BadgeInfoDialog from './components/BadgeInfoDialog.vue'
 import BadgeUnlockedOverlay from './components/BadgeUnlockedOverlay.vue'
 import ChangePasswordDialog from './components/ChangePasswordDialog.vue'
 import RankingPanel from './components/RankingPanel.vue'
+import CoachPanel from './components/CoachPanel.vue'
 import AuthGate from './components/AuthGate.vue'
 
 import { useChallenge } from './composables/useChallenge.js'
 import { useCountdown } from './composables/useCountdown.js'
 import { useCatalog } from './composables/useCatalog.js'
 import { useAuth, ApiError } from './composables/useAuth.js'
+
+// Sincronización con reloj (Strava/Garmin) desactivada: por ahora los retos se
+// registran a mano. Ponlo en true para volver a mostrar la tarjeta.
+const SYNC_ENABLED = false
 
 const toast = useToast()
 const confirm = useConfirm()
@@ -39,6 +44,7 @@ const {
   isAuthenticated,
   ready,
   usuario,
+  esCoach,
   restoreSession,
   logout,
   sessionExpired,
@@ -304,6 +310,7 @@ function onPasswordChanged() {
         <Tab value="reto"><i class="pi pi-bolt" /> Mi reto</Tab>
         <Tab value="actividad"><i class="pi pi-history" /> Actividad</Tab>
         <Tab value="ranking"><i class="pi pi-trophy" /> Ranking</Tab>
+        <Tab v-if="esCoach" value="panel"><i class="pi pi-chart-bar" /> Panel</Tab>
         <Tab value="reglas"><i class="pi pi-book" /> Reglas</Tab>
       </TabList>
 
@@ -328,7 +335,14 @@ function onPasswordChanged() {
 
           <StatsRow :stats="stats" />
 
-          <SyncCard :disabled="finished" @sync="handleSync" />
+          <SyncCard v-if="SYNC_ENABLED" :disabled="finished" @sync="handleSync" />
+
+          <Message severity="info" :closable="false" class="act-manual">
+            <span class="act-manual__text">
+              La sincronización con reloj no está disponible por ahora. Registra tus retos de forma
+              manual: toca una insignia y agrega tus kilómetros, minutos o desnivel.
+            </span>
+          </Message>
 
           <BadgeGrid
             :badges="badges"
@@ -354,6 +368,11 @@ function onPasswordChanged() {
         <!-- ── RANKING ── -->
         <TabPanel value="ranking">
           <RankingPanel :my-dorsal="runner.bib" />
+        </TabPanel>
+
+        <!-- ── PANEL DEL COACH (solo coach/admin) ── -->
+        <TabPanel v-if="esCoach" value="panel">
+          <CoachPanel />
         </TabPanel>
 
         <!-- ── REGLAS ── -->
@@ -418,6 +437,16 @@ function onPasswordChanged() {
 
 .act-finished {
   margin: 0.75rem 1rem 0 !important;
+}
+
+.act-manual {
+  margin: 0.9rem 1rem 0 !important;
+}
+
+.act-manual__text {
+  display: block;
+  font-size: 0.78rem;
+  line-height: 1.35;
 }
 
 .act-tabs :deep(.p-tablist) {
