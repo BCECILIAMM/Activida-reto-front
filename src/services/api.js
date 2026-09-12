@@ -91,7 +91,12 @@ export const api = {
     login: (payload) => request('/auth/login', { method: 'POST', body: payload, auth: false }),
     yo: () => request('/auth/yo'),
     cambiarPassword: (payload) =>
-      request('/auth/cambiar-password', { method: 'POST', body: payload, on401: 'ignore' })
+      request('/auth/cambiar-password', { method: 'POST', body: payload, on401: 'ignore' }),
+    // Recuperar contraseña: pide el enlace al correo y luego, con el token
+    // que trae ese enlace, guarda la nueva. Ambas son públicas.
+    olvidePassword: (payload) => request('/auth/olvide-password', { method: 'POST', body: payload, auth: false }),
+    restablecerPassword: (payload) =>
+      request('/auth/restablecer-password', { method: 'POST', body: payload, auth: false })
   },
   retos: {
     activo: () => request('/retos/activo', { auth: false }),

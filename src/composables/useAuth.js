@@ -73,6 +73,30 @@ async function registro({ nombre, email, password, telefono }) {
   }
 }
 
+async function olvidePassword(email) {
+  state.loading = true
+  try {
+    return await api.auth.olvidePassword({ email })
+  } finally {
+    state.loading = false
+  }
+}
+
+/* El backend devuelve la sesión ya iniciada al restablecer, igual que login. */
+async function restablecerPassword(token, password) {
+  state.loading = true
+  try {
+    const data = await api.auth.restablecerPassword({ token, password })
+    setToken(data.token)
+    state.usuario = data.usuario
+    state.inscripcion = data.inscripcion
+    state.sessionExpired = false
+    return data
+  } finally {
+    state.loading = false
+  }
+}
+
 function logout() {
   setToken(null)
   state.usuario = null
@@ -98,6 +122,8 @@ export function useAuth() {
     restoreSession,
     login,
     registro,
+    olvidePassword,
+    restablecerPassword,
     logout,
     acknowledgeExpired
   }
