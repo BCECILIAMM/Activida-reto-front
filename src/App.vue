@@ -151,12 +151,22 @@ function openInfo(badge) {
 }
 
 /* ---------- acciones ---------- */
+/**
+ * Un servidor caído no es lo mismo que un error de la app: no lo ha provocado
+ * la corredora, no lo arregla reintentando al instante y no se pierde lo que
+ * escribió. Se avisa aparte y con más tiempo en pantalla, porque un "algo
+ * salió mal" de cuatro segundos deja pensando que la culpa fue suya.
+ *
+ * El 503 lo manda el backend cuando no alcanza la base; el 0 lo pone
+ * `api.js` cuando `fetch` ni siquiera llegó a salir.
+ */
 function reportError(e, fallback) {
+  const esCaida = e instanceof ApiError && (e.status === 503 || e.status === 0)
   toast.add({
-    severity: 'error',
-    summary: 'Algo salió mal',
+    severity: esCaida ? 'warn' : 'error',
+    summary: esCaida ? 'El servicio no está disponible' : 'Algo salió mal',
     detail: e instanceof ApiError ? e.message : fallback,
-    life: 4000
+    life: esCaida ? 7000 : 4000
   })
 }
 
