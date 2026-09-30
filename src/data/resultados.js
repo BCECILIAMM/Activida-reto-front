@@ -10,12 +10,13 @@
  *
  *  - imagen: ruta dentro de public/ (la que se comparte en redes)
  *  - podio:  dorsales en orden → 1.er, 2.º y 3.er lugar
+ *
+ * Ejemplo:
+ *   '2026-09': {
+ *     imagen: 'resultados/reto-2026-09.jpg',
+ *     podio: ['108', '118', '133']
+ *   }
  */
-export const RESULTADOS = {
-  '2026-09': {
-    imagen: 'resultados/reto-2026-09.jpg',
-    podio: ['108', '118', '133']
-  }
-}
+export const RESULTADOS = {}
 
 export const LUGARES = ['1.er lugar', '2.º lugar', '3.er lugar']
