@@ -22,7 +22,7 @@ const emit = defineEmits(['open'])
     <div class="rc__texto">
       <span class="rc__titulo">
         <template v-if="lugar">Quedaste en {{ LUGARES[lugar - 1] }}</template>
-        <template v-else>Ya están los resultados</template>
+        <template v-else>Los 3 primeros lugares</template>
       </span>
       <span class="rc__sub">Mira el podio del Reto {{ mes }} {{ anio }}.</span>
     </div>

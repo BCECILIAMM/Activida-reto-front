@@ -89,16 +89,25 @@ const { parts, monthProgress, finished } = useCountdown(
   () => challenge.value.endsAt
 )
 
+// El aviso de resultados espera a que cargue el progreso (ahí llega el dorsal).
+const progresoListo = ref(false)
+
 const {
   resultado,
   lugar,
   visible: resultadosVisible,
   abrir: abrirResultados,
   cerrar: cerrarResultados
-} = useResultados({ challenge, dorsal: () => runner.bib, finished })
+} = useResultados({
+  challenge,
+  dorsal: () => runner.bib,
+  usuarioId: () => usuario.value?.id,
+  listo: progresoListo
+})
 
 /* ---------- sesión ---------- */
 async function initChallenge() {
+  progresoListo.value = false
   setRunnerName(usuario.value?.nombre)
   try {
     await refresh()
@@ -109,6 +118,8 @@ async function initChallenge() {
       detail: e instanceof ApiError ? e.message : 'Revisa tu conexión e intenta de nuevo.',
       life: 4000
     })
+  } finally {
+    progresoListo.value = true
   }
 }
 
@@ -124,6 +135,7 @@ watch(isAuthenticated, (yes) => {
 
 watch(sessionExpired, (expired) => {
   if (!expired) return
+  progresoListo.value = false
   clear()
   toast.add({
     severity: 'warn',
@@ -135,6 +147,7 @@ watch(sessionExpired, (expired) => {
 })
 
 function handleLogout() {
+  progresoListo.value = false
   logout()
   clear()
 }

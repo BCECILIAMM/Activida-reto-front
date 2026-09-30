@@ -5,9 +5,9 @@ import MedallaReto from './MedallaReto.vue'
 import { LUGARES } from '../data/resultados.js'
 
 /**
- * Aviso de cierre del reto. A quien quedó en el podio le dice su lugar con su
- * medalla; a todas las personas les muestra la imagen del podio y el
- * agradecimiento por participar.
+ * Aviso de resultados del reto. Todas las personas ven la imagen del podio y
+ * el agradecimiento por participar; a quien quedó en los tres primeros
+ * lugares, además, se le dice su lugar con su medalla.
  */
 const props = defineProps({
   visible: { type: Boolean, default: false },
@@ -70,9 +70,9 @@ const confetti = Array.from({ length: 22 }, (_, i) => ({
         </template>
 
         <template v-else>
-          <span class="res__meta" aria-hidden="true">🏁</span>
-          <h2 id="res-titulo" class="res__titulo">¡Terminamos el reto!</h2>
-          <p class="res__lead">Ya están los resultados del Reto ActiVida de {{ mes }}.</p>
+          <span class="res__meta" aria-hidden="true">🏆</span>
+          <h2 id="res-titulo" class="res__titulo">¡Conoce a los 3 primeros lugares!</h2>
+          <p class="res__lead">Estos son los resultados del Reto ActiVida de {{ mes }}.</p>
         </template>
 
         <a v-if="imagenUrl" class="res__podio" :href="imagenUrl" target="_blank" rel="noopener">

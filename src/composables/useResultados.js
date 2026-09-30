@@ -4,9 +4,13 @@ import { RESULTADOS } from '../data/resultados.js'
 /**
  * Resultados del reto para quien tiene la sesión abierta.
  *
- * Solo hay resultados cuando el mes terminó y el reto tiene entrada en
- * `data/resultados.js`. El aviso se abre solo una vez por reto y dorsal; luego
- * se vuelve a abrir desde la tarjeta de "Mi reto".
+ * Hay resultados en cuanto el reto tiene entrada en `data/resultados.js`:
+ * esa entrada es la que los publica. Todas las personas ven el podio y el
+ * agradecimiento; a quien quedó en los tres primeros lugares, además, se le
+ * dice su lugar.
+ *
+ * El aviso se abre solo una vez por reto y cuenta; luego se vuelve a abrir
+ * desde la tarjeta de "Mi reto".
  */
 
 /** Lugar (1, 2 o 3) de un dorsal en el podio, o null si no está. */
@@ -16,45 +20,49 @@ export function lugarEnPodio(podio, dorsal) {
   return i >= 0 ? i + 1 : null
 }
 
-/** Resultados publicados de un reto, solo si ya terminó. */
-export function resultadosDe(codigo, terminado, tabla = RESULTADOS) {
-  if (!terminado || !codigo || !tabla[codigo]) return null
+/** Resultados publicados de un reto, o null si todavía no hay. */
+export function resultadosDe(codigo, tabla = RESULTADOS) {
+  if (!codigo || !tabla[codigo]) return null
   return { codigo, ...tabla[codigo] }
 }
 
-const claveVisto = (codigo, dorsal) => `activida:resultados-vistos:${codigo}:${dorsal}`
+const claveVisto = (codigo, usuarioId) => `activida:resultados-vistos:${codigo}:${usuarioId}`
 
-function yaVisto(codigo, dorsal) {
+function yaVisto(codigo, usuarioId) {
   try {
-    return localStorage.getItem(claveVisto(codigo, dorsal)) === '1'
+    return localStorage.getItem(claveVisto(codigo, usuarioId)) === '1'
   } catch {
     return false
   }
 }
 
-function marcarVisto(codigo, dorsal) {
+function marcarVisto(codigo, usuarioId) {
   try {
-    localStorage.setItem(claveVisto(codigo, dorsal), '1')
+    localStorage.setItem(claveVisto(codigo, usuarioId), '1')
   } catch {
     // sin almacenamiento (modo privado): el aviso volverá a salir, no pasa nada
   }
 }
 
-export function useResultados({ challenge, dorsal, finished }) {
-  const resultado = computed(() =>
-    resultadosDe(toValue(challenge)?.codigo, toValue(finished))
-  )
+/**
+ * @param challenge  reto activo (ref o getter), de él sale el código
+ * @param dorsal     dorsal de la sesión, para saber si quedó en el podio
+ * @param usuarioId  id de la cuenta, para recordar que ya vio el aviso
+ * @param listo      true cuando ya cargó el progreso: antes de eso el dorsal
+ *                   puede no haber llegado, y a quien ganó le saldría el aviso
+ *                   genérico y quedaría marcado como visto.
+ */
+export function useResultados({ challenge, dorsal, usuarioId, listo }) {
+  const resultado = computed(() => resultadosDe(toValue(challenge)?.codigo))
 
   const lugar = computed(() => lugarEnPodio(resultado.value?.podio, toValue(dorsal)))
 
   const visible = ref(false)
 
-  // Se espera a tener el dorsal: si se abriera antes, a quien ganó le saldría
-  // el aviso genérico y ya quedaría marcado como visto.
   watch(
-    () => [resultado.value, toValue(dorsal)],
-    ([r, d]) => {
-      if (r && d && !yaVisto(r.codigo, d)) visible.value = true
+    () => [resultado.value, toValue(usuarioId), toValue(listo)],
+    ([r, u, ok]) => {
+      if (r && u && ok && !yaVisto(r.codigo, u)) visible.value = true
     },
     { immediate: true }
   )
@@ -65,8 +73,8 @@ export function useResultados({ challenge, dorsal, finished }) {
 
   function cerrar() {
     visible.value = false
-    const d = toValue(dorsal)
-    if (resultado.value && d) marcarVisto(resultado.value.codigo, d)
+    const u = toValue(usuarioId)
+    if (resultado.value && u) marcarVisto(resultado.value.codigo, u)
   }
 
   return { resultado, lugar, visible, abrir, cerrar }
