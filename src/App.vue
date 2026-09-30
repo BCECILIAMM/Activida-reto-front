@@ -27,11 +27,14 @@ import ChangePasswordDialog from './components/ChangePasswordDialog.vue'
 import RankingPanel from './components/RankingPanel.vue'
 import CoachPanel from './components/CoachPanel.vue'
 import AuthGate from './components/AuthGate.vue'
+import ResultadosOverlay from './components/ResultadosOverlay.vue'
+import ResultadosCard from './components/ResultadosCard.vue'
 
 import { useChallenge } from './composables/useChallenge.js'
 import { useCountdown } from './composables/useCountdown.js'
 import { useCatalog } from './composables/useCatalog.js'
 import { useAuth, ApiError } from './composables/useAuth.js'
+import { useResultados } from './composables/useResultados.js'
 
 // Sincronización con reloj (Strava/Garmin) desactivada: por ahora los retos se
 // registran a mano. Ponlo en true para volver a mostrar la tarjeta.
@@ -85,6 +88,14 @@ const { parts, monthProgress, finished } = useCountdown(
   () => challenge.value.startsAt,
   () => challenge.value.endsAt
 )
+
+const {
+  resultado,
+  lugar,
+  visible: resultadosVisible,
+  abrir: abrirResultados,
+  cerrar: cerrarResultados
+} = useResultados({ challenge, dorsal: () => runner.bib, finished })
 
 /* ---------- sesión ---------- */
 async function initChallenge() {
@@ -336,6 +347,14 @@ function onPasswordChanged() {
             El reto de {{ challenge.month }} terminó. Lo que registres ahora ya no cuenta para este mes.
           </Message>
 
+          <ResultadosCard
+            v-if="resultado"
+            :lugar="lugar"
+            :mes="challenge.month"
+            :anio="challenge.year"
+            @open="abrirResultados"
+          />
+
           <TierTrack
             :tiers="tiers"
             :completed="allCompleted"
@@ -418,6 +437,16 @@ function onPasswordChanged() {
     />
 
     <BadgeUnlockedOverlay :badge="unlockedBadge" :tier="unlockedTier" @close="closeUnlocked" />
+
+    <ResultadosOverlay
+      :visible="resultadosVisible && Boolean(resultado)"
+      :lugar="lugar"
+      :nombre="runner.name"
+      :mes="challenge.month"
+      :anio="challenge.year"
+      :imagen="resultado?.imagen"
+      @close="cerrarResultados"
+    />
 
     <ChangePasswordDialog v-model:visible="passwordVisible" @done="onPasswordChanged" />
 

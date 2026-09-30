@@ -102,6 +102,29 @@ Para un reto especial de fin de semana, agrega un badge más con
 
 ---
 
+## Publicar los resultados del mes
+
+Cuando el reto termina, la app le muestra a cada persona un aviso con la imagen
+del podio y un agradecimiento; a quien quedó en los tres primeros lugares,
+además, su lugar con su medalla. Se abre solo la primera vez y después queda
+una tarjeta en "Mi reto" para volver a verlo.
+
+El aviso **solo sale si el reto tiene entrada** en `src/data/resultados.js`:
+
+```js
+export const RESULTADOS = {
+  '2026-09': {                                // código del reto
+    imagen: 'resultados/reto-2026-09.jpg',    // dentro de public/
+    podio: ['108', '118', '133']              // dorsales: 1.º, 2.º y 3.º
+  }
+}
+```
+
+Llénalo después del cierre, con los datos finales, y pon la imagen en
+`public/resultados/`.
+
+---
+
 ## Modo claro y oscuro
 
 - Arranca con la preferencia del sistema operativo.

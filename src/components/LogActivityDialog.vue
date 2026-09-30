@@ -41,6 +41,8 @@ const remaining = computed(() => {
 const isNumeric = computed(() => props.badge?.type === 'numeric')
 const isEvidence = computed(() => props.badge?.type === 'evidence')
 const isCount = computed(() => ['count', 'weeks'].includes(props.badge?.type))
+/** La evidencia se puede adjuntar en cualquier registro; solo es obligatoria en los badges tipo 'evidence' */
+const showEvidence = computed(() => isNumeric.value || isCount.value || isEvidence.value)
 
 const suffix = computed(() => (props.badge?.unit ? ' ' + props.badge.unit : ''))
 
@@ -101,9 +103,14 @@ function submit() {
       error.value = 'Escribe una cantidad mayor a cero.'
       return
     }
-    emit('submit', { badge: props.badge, amount: amount.value, notes: notes.value })
+    emit('submit', {
+      badge: props.badge,
+      amount: amount.value,
+      notes: notes.value,
+      files: files.value.slice()
+    })
   } else if (isCount.value) {
-    emit('submit', { badge: props.badge, amount: 1, notes: notes.value })
+    emit('submit', { badge: props.badge, amount: 1, notes: notes.value, files: files.value.slice() })
   } else if (isEvidence.value) {
     if (!files.value.length) {
       error.value = 'Sube al menos una foto o video como evidencia.'
@@ -213,9 +220,12 @@ function close() {
         </p>
       </div>
 
-      <!-- EVIDENCIA -->
-      <div v-else-if="isEvidence" class="log__field">
-        <label class="log__label">Evidencia (foto o video)</label>
+      <!-- EVIDENCIA (obligatoria en badges tipo 'evidence', opcional en el resto) -->
+      <div v-if="showEvidence" class="log__field">
+        <label class="log__label">
+          Evidencia (foto o video)
+          <span v-if="!isEvidence">(opcional)</span>
+        </label>
 
         <input
           ref="fileInput"
